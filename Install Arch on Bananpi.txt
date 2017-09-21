@@ -1,0 +1,131 @@
+Steps to create Arch Linux on Bananapi
+
+Following steps from here
+https://wiki.archlinux.org/index.php/Banana_Pi
+
+
+# Create a vmdk to mount in VirtualBox for the SDCARD
+Open a command windows as Administrator
+wmic diskdrive list brief
+"C:\Program Files\Oracle\VirtualBox\VBoxManage" internalcommands createrawvmdk -filename "%USERPROFILE%/Desktop/sdcard.vmdk" -rawdisk "\\.\PHYSICALDRIVE2"
+
+
+# Need to unmount the sdcard in Windows without actually ejecting it or else VirtualBox will not be able to do any IO operations
+run C:\Windows\System32\diskpart.exe
+
+list disk
+select disk #
+clean -- This will format and remove the disk from Windows
+
+
+# Run VirtualBox as Administrator
+Storage and HarkDisk sdcard.vmdk
+
+# Inside of VirtualBox (Antergos)
+# Files and software you need
+yaourt -S uboot-tools
+yaourt -S arm-none-eabi-gcc
+yaourt -S dtc
+
+---git clone git://git.denx.de/u-boot.git
+
+# create a folder in home dir.  Call it arch_bananapi
+mkdir arch_bananapi
+cd arch_bananapi
+
+# create the boot.cmd in arch_bananapi
+# this will later get compiled into boot.src in the boot folder of the sdcard
+nano boot.cmd
+------------------------------------------------------------------------------------
+part uuid ${devtype} ${devnum}:${bootpart} uuid
+setenv bootargs console=${console} root=PARTUUID=${uuid} rw rootwait
+
+if load ${devtype} ${devnum}:${bootpart} ${kernel_addr_r} /boot/zImage; then
+  if load ${devtype} ${devnum}:${bootpart} ${fdt_addr_r} /boot/dtbs/${fdtfile}; then
+    if load ${devtype} ${devnum}:${bootpart} ${ramdisk_addr_r} /boot/initramfs-linux.img; then
+      bootz ${kernel_addr_r} ${ramdisk_addr_r}:${filesize} ${fdt_addr_r};
+    else
+      bootz ${kernel_addr_r} - ${fdt_addr_r};
+    fi;
+  fi;
+fi
+
+if load ${devtype} ${devnum}:${bootpart} 0x48000000 /boot/uImage; then
+  if load ${devtype} ${devnum}:${bootpart} 0x43000000 /boot/script.bin; then
+    setenv bootm_boot_mode sec;
+    bootm 0x48000000;
+  fi;
+fi
+------------------------------------------------------------------------------------
+
+# download the image into it
+wget http://archlinuxarm.org/os/ArchLinuxARM-armv7-latest.tar.gz
+
+
+
+sdX = sdb
+sudo su
+# Zero the sdcard card out; this is important
+dd if=/dev/zero of=/dev/sdX bs=1M count=8
+
+# fdisk a new partition; use all the default values
+fdisk /dev/sdb
+n # for partiion number
+enter
+enter
+enter
+w # write the partition
+
+# use mkfs to format the partition
+mkfs.ext4 -O ^metadata_csum,^64bit /dev/sdb1
+
+# mount to /mnt
+mount /dev/sdb1 /mnt
+
+# copy the arch image into the mounted /mnt
+bsdtar -xpf ArchLinuxARM-armv7-latest.tar.gz -C /mnt/
+
+# compile boot.cmd into boot.src into the boot folder of /mnt
+mkimage -A arm -O linux -T script -C none -a 0 -e 0 -n "BananPI boot script" -d boot.cmd /mnt/boot/boot.scr
+
+# unmount and copy the final boot instruction (sunxi) into the specific registry below
+# I could never get u-boot-sunxi-with-spl.bin to compile so I copied it from https://github.com/ouafnico/BananaPi-Archlinux
+umount /mnt
+dd if=u-boot-sunxi-with-spl.bin of=/dev/sdb bs=1024 seek=8
+
+
+
+
+------------------------------------------------------------------------------------
+Login / SSH
+SSH login for root is disabled by default. Login with the default user account and use su.
+
+Type	Username	Password
+Root	root	root
+User	alarm	alarm
+
+
+
+
+
+# enter root
+su
+
+# Sync db
+pacman -Syy
+
+# full system update
+pacman -Syu
+
+# base-devel
+pacman -S base-devel
+
+# give sudo permission
+nano /etc/sudoers
+alarm ALL=(ALL) NOPASSWD: ALL
+
+# install yaourt and package query
+tar -xf package-query
+tar -xf yaourt
+
+makepgk -si
