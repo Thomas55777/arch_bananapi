@@ -1,0 +1,21 @@
+https://wiki.archlinux.org/index.php/Resilio_Sync#Automatic_config_file_creation
+#resilio-sync instructions
+
+# install the package from AUR
+yaourt -S rslsync
+
+# download the config example from 
+rslsync --dump-sample-config > ~/.config/rslsync/rslsync.conf
+
+# change the storage_path
+mkdir .resilio_sync
+"storage_path" : "/home/alarm/.resilio_sync",
+
+
+# allow for headerless instance of the daemon to run; this will allow resilio to run even without an SSH connection
+loginctl enable-linger alarm
+
+# start the resilio service
+systemctl --user restart rslsync
+
+visit the gui at {ip-address}:8888
