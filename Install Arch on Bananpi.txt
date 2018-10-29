@@ -68,6 +68,7 @@ sudo su
 # Zero the sdcard card out; this is important
 dd if=/dev/zero of=/dev/sdX bs=1M count=8
 
+# use mbt partition table.  I was having trouble with GPT and couldnt get it to work
 # fdisk a new partition; use all the default values
 fdisk /dev/sdb
 n # for partiion number
