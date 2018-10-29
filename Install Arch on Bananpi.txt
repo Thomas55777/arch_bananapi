@@ -111,6 +111,10 @@ User	alarm	alarm
 # enter root
 su
 
+# Add the keys for PGP Signatures.  Need this before any pacman update
+pacman-key --init
+pacman-key --populate archlinuxarm
+
 # Sync db
 pacman -Syy
 
@@ -125,6 +129,11 @@ nano /etc/sudoers
 alarm ALL=(ALL) NOPASSWD: ALL
 
 # install yaourt and package query
+sudo pacman -S wget
+
+wget https://aur.archlinux.org/cgit/aur.git/snapshot/yaourt.tar.gz
+wget https://aur.archlinux.org/cgit/aur.git/snapshot/package-query.tar.gz
+
 tar -xf package-query
 tar -xf yaourt
 
